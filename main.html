@@ -1,0 +1,1309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>THREATSCAN — AI Phishing Detection</title>
+<link href="https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&family=Playfair+Display:ital,wght@0,700;0,900;1,700;1,900&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --paper:  #f0e9d8;
+  --paper2: #e8dfc8;
+  --ink:    #1c1710;
+  --red:    #b02a1a;
+  --gray:   #7a7060;
+  --dim:    #3a3428;
+  --serif:  'Playfair Display', 'Times New Roman', Georgia, serif;
+  --mono:   'Courier Prime', 'Courier New', monospace;
+  --b:      2px solid #1c1710;
+  --b4:     4px solid #1c1710;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--mono);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── CRT scanlines ── */
+body::before {
+  content:''; position:fixed; inset:0; pointer-events:none; z-index:900;
+  background: repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,0.018) 3px,rgba(0,0,0,0.018) 4px);
+}
+
+/* ══════════════════════════════════════════════
+   HERO BANNER — phishing themed illustration
+══════════════════════════════════════════════ */
+.hero {
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+  border-bottom: var(--b4);
+  background: #0d0d0d;
+}
+
+.hero-svg { display: block; width: 100%; height: auto; }
+
+.hero-overlay {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 40px 24px;
+  text-align: center;
+}
+
+.hero-kicker {
+  font-family: var(--mono);
+  font-size: 13px;
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  color: #b8a890;
+  margin-bottom: 16px;
+  display: flex; align-items: center; gap: 12px;
+}
+.hero-kicker::before,.hero-kicker::after{content:''; flex:1; max-width:60px; height:1px; background:#b8a890; opacity:0.5;}
+
+.hero-title {
+  font-family: var(--serif);
+  font-size: clamp(48px, 8vw, 110px);
+  font-weight: 900;
+  font-style: italic;
+  line-height: 0.88;
+  letter-spacing: -2px;
+  color: #f0e9d8;
+  text-shadow: 0 4px 40px rgba(0,0,0,0.8);
+  margin-bottom: 18px;
+}
+
+.hero-title .red-word { color: #d94030; }
+
+.hero-sub {
+  font-family: var(--mono);
+  font-size: clamp(12px, 1.4vw, 16px);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #9a8e7c;
+  margin-bottom: 28px;
+}
+
+.hero-badges {
+  display: flex; gap: 12px; flex-wrap: wrap; justify-content: center;
+}
+
+.hbadge {
+  padding: 7px 18px;
+  border: 1px solid rgba(240,233,216,0.25);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #c8bfaa;
+  background: rgba(240,233,216,0.06);
+}
+
+/* ── status blink ── */
+.blink{display:inline-block;width:7px;height:7px;background:#d94030;border-radius:50%;animation:bl 1.1s step-end infinite;vertical-align:middle;margin-right:6px;}
+@keyframes bl{0%,100%{opacity:1}50%{opacity:0}}
+
+/* ══════════════════════════════════════════════
+   SECTION: phishing anatomy cards
+══════════════════════════════════════════════ */
+.anatomy-strip {
+  display: grid;
+  grid-template-columns: repeat(4,1fr);
+  border-bottom: var(--b);
+}
+
+.acard {
+  padding: 28px 22px 24px;
+  border-right: var(--b);
+  position: relative;
+  overflow: hidden;
+  background: var(--paper);
+  transition: background 0.2s;
+}
+.acard:last-child{border-right:none;}
+.acard:hover{background:#e0d8c4;}
+
+.acard-icon {
+  width: 48px; height: 48px;
+  margin-bottom: 14px;
+}
+
+.acard-num {
+  position: absolute; top: 14px; right: 16px;
+  font-family: var(--serif); font-size: 64px; font-weight: 900;
+  color: rgba(28,23,16,0.06); line-height: 1; pointer-events: none;
+}
+
+.acard-title {
+  font-family: var(--serif);
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.1;
+  margin-bottom: 8px;
+  color: var(--ink);
+}
+
+.acard-desc {
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--gray);
+}
+
+/* ══════════════════════════════════════════════
+   MASTHEAD BAR
+══════════════════════════════════════════════ */
+.mastbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 40px;
+  border-bottom: var(--b);
+  background: var(--ink);
+  color: var(--paper);
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.mastbar-left {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #8a8070;
+  line-height: 1.8;
+}
+
+.mastbar-center {
+  font-family: var(--serif);
+  font-size: clamp(18px,2.5vw,28px);
+  font-weight: 700;
+  font-style: italic;
+  letter-spacing: -0.5px;
+  color: var(--paper);
+}
+
+.mastbar-right {
+  display: flex; align-items: center; gap: 8px;
+  font-family: var(--mono); font-size: 11px;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: #5d9e6a;
+}
+
+/* ══════════════════════════════════════════════
+   STATS ROW
+══════════════════════════════════════════════ */
+.stats-row {
+  display: grid; grid-template-columns: repeat(4,1fr);
+  border-bottom: var(--b);
+}
+.sc {
+  padding: 28px 28px 24px;
+  border-right: var(--b);
+  position: relative; overflow: hidden;
+}
+.sc:last-child{border-right:none;}
+.sc::before{content:attr(data-n);position:absolute;bottom:-14px;right:10px;font-family:var(--serif);font-size:100px;font-weight:900;color:rgba(28,23,16,0.04);line-height:1;pointer-events:none;}
+.sc-lbl{font-family:var(--mono);font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:var(--gray);margin-bottom:10px;}
+.sc-lbl::before{content:'// ';color:var(--dim);}
+.sc-val{font-family:var(--serif);font-size:clamp(42px,4vw,64px);font-weight:900;line-height:1;color:var(--ink);transition:all 0.4s;}
+.sc-val.red{color:var(--red);}
+.sc-sub{font-family:var(--mono);font-size:11px;color:var(--gray);margin-top:7px;}
+
+/* ══════════════════════════════════════════════
+   DIVIDER HEADLINE (newspaper rule)
+══════════════════════════════════════════════ */
+.divider-head {
+  display: flex; align-items: center; gap: 0;
+  border-top: var(--b4); border-bottom: var(--b);
+  padding: 14px 40px;
+  background: var(--paper2);
+}
+.dh-line{flex:1;height:1px;background:var(--ink);opacity:0.15;}
+.dh-text{
+  font-family:var(--serif);
+  font-size:clamp(13px,1.8vw,20px);
+  font-weight:700; font-style:italic;
+  letter-spacing:0.05em;
+  padding:0 22px;
+  white-space:nowrap;
+  color:var(--ink);
+}
+
+/* ══════════════════════════════════════════════
+   MAIN TWO-COL
+══════════════════════════════════════════════ */
+.main-cols{display:grid;grid-template-columns:1fr 1fr;border-bottom:var(--b);}
+.col-l{border-right:var(--b);}
+.col-r{display:flex;flex-direction:column;}
+
+.sh{
+  border-bottom:var(--b); padding:13px 26px;
+  display:flex;align-items:center;justify-content:space-between;
+  background:var(--ink); color:var(--paper);
+}
+.sh h2{font-family:var(--serif);font-size:clamp(18px,2vw,24px);font-style:italic;font-weight:700;}
+.sh-tag{font-family:var(--mono);font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:#7a7060;opacity:0.7;}
+
+/* ── Tabs ── */
+.tabs-row{display:flex;border-bottom:var(--b);}
+.tab-btn{
+  flex:1;padding:12px 8px;border:none;border-right:var(--b);
+  background:transparent;font-family:var(--mono);
+  font-size:11px;letter-spacing:0.12em;text-transform:uppercase;
+  color:var(--gray);cursor:pointer;transition:all 0.15s;
+}
+.tab-btn:last-child{border-right:none;}
+.tab-btn.active{background:var(--ink);color:var(--paper);}
+.tab-btn:hover:not(.active){background:rgba(0,0,0,0.05);color:var(--ink);}
+
+/* ── Form ── */
+.form-body{padding:26px;}
+.form-group{margin-bottom:18px;}
+.form-lbl{display:block;font-family:var(--mono);font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:var(--gray);margin-bottom:7px;}
+.form-input,.form-ta{
+  width:100%;background:#f8f3e8;border:var(--b);
+  padding:12px 14px;font-family:var(--mono);font-size:14px;color:var(--ink);
+  outline:none;transition:box-shadow 0.15s;resize:none;border-radius:0;-webkit-appearance:none;
+}
+.form-input:focus,.form-ta:focus{box-shadow:4px 4px 0 var(--ink);}
+.form-ta{height:96px;line-height:1.6;}
+.scan-btn{
+  width:100%;padding:16px;background:var(--ink);border:var(--b);
+  color:var(--paper);font-family:var(--serif);font-size:clamp(17px,2vw,22px);
+  font-style:italic;font-weight:700;cursor:pointer;
+  transition:all 0.15s;display:flex;align-items:center;justify-content:center;gap:10px;
+}
+.scan-btn:hover{background:var(--paper);color:var(--ink);box-shadow:5px 5px 0 var(--ink);transform:translate(-2px,-2px);}
+.scan-btn:active{transform:none;box-shadow:none;}
+.scan-btn:disabled{opacity:0.4;cursor:not-allowed;transform:none;box-shadow:none;}
+
+/* ── Terminal ── */
+.terminal{
+  margin-top:16px;background:#0d0b08;border:var(--b);
+  padding:14px 16px;font-family:var(--mono);font-size:12px;line-height:1.9;
+  height:96px;overflow-y:auto;display:none;color:#c8bfaa;
+}
+.terminal.vis{display:block;}
+.t-p{color:#7a7060;} .t-c{color:#f0e9d8;} .t-ok{color:#7ec880;} .t-wa{color:#d4a843;} .t-er{color:#d45843;}
+.t-cur{display:inline-block;width:9px;height:13px;background:#f0e9d8;vertical-align:middle;animation:bl 1s step-end infinite;}
+
+/* ── Result ── */
+.rbox{margin-top:16px;border:var(--b);display:none;animation:su 0.25s ease both;}
+.rbox.vis{display:block;}
+.rhd{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:var(--b);background:var(--ink);color:var(--paper);}
+.rhd-lbl{font-family:var(--mono);font-size:10px;letter-spacing:0.18em;text-transform:uppercase;}
+.vstamp{font-family:var(--serif);font-size:14px;font-weight:700;font-style:italic;padding:2px 12px;border:2px solid var(--paper);}
+.vstamp.bad{border-color:#d45843;color:#d45843;}
+.vstamp.good{border-color:#7ec880;color:#7ec880;}
+.rrow{display:flex;justify-content:space-between;align-items:center;padding:10px 16px;border-bottom:1px solid rgba(0,0,0,0.08);font-size:13px;}
+.rrow:last-child{border-bottom:none;}
+.rk{font-family:var(--mono);font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--gray);}
+.rv{font-family:var(--mono);font-size:13px;color:var(--ink);font-weight:700;}
+.rbar-wrap{display:flex;align-items:center;gap:10px;}
+.rtrack{width:80px;height:5px;background:var(--paper2);}
+.rfill{height:100%;background:var(--ink);transition:width 0.7s cubic-bezier(.34,1.2,.64,1);}
+.rtag{display:inline-block;padding:2px 9px;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;font-weight:700;border:1.5px solid;font-family:var(--mono);}
+.r-CRITICAL{border-color:var(--red);color:var(--red);}
+.r-HIGH{border-color:#b0390b;color:#b0390b;}
+.r-MEDIUM{border-color:#8a6a00;color:#8a6a00;}
+.r-LOW{border-color:var(--dim);color:var(--dim);}
+
+/* ── Chart ── */
+.chart-sec{border-bottom:var(--b);flex-shrink:0;}
+.chart-wrap{padding:20px 24px 8px;display:flex;align-items:flex-end;gap:8px;height:136px;}
+.bcol{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end;}
+.bcols{width:100%;display:flex;gap:2px;align-items:flex-end;height:100px;}
+.bbar{flex:1;min-height:2px;background:var(--ink);transition:height 0.8s cubic-bezier(.34,1.2,.64,1);}
+.bbar.t{background:var(--dim);opacity:0.35;}
+.blbl{font-family:var(--mono);font-size:9px;letter-spacing:0.06em;color:var(--gray);text-transform:uppercase;}
+.cleg{display:flex;gap:18px;padding:10px 24px 14px;border-top:1px solid rgba(0,0,0,0.09);font-family:var(--mono);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--gray);}
+.li{display:flex;align-items:center;gap:6px;}
+.lsw{width:12px;height:4px;}
+.lsw.tot{background:var(--ink);}
+.lsw.thr{background:var(--dim);opacity:0.45;}
+
+/* ── Breakdown ── */
+.brk-sec{flex:1;}
+.brk-body{padding:20px 24px;}
+.rl-row{margin-bottom:16px;}
+.rl-hd{display:flex;justify-content:space-between;font-family:var(--mono);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:6px;color:var(--gray);}
+.rl-hd span:last-child{color:var(--ink);font-weight:700;}
+.rl-track{height:5px;background:var(--paper2);}
+.rl-fill{height:100%;background:var(--ink);transition:width 0.7s ease;}
+
+/* ══════════════════════════════════════════════
+   LOGS
+══════════════════════════════════════════════ */
+.logs-sec{}
+.logs-flt{display:flex;border-bottom:var(--b);overflow-x:auto;}
+.fc{padding:10px 20px;border:none;border-right:1px solid rgba(0,0,0,0.12);background:transparent;font-family:var(--mono);font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--gray);cursor:pointer;transition:all 0.15s;white-space:nowrap;flex-shrink:0;}
+.fc.active{background:var(--ink);color:var(--paper);}
+.fc:hover:not(.active){background:rgba(0,0,0,0.05);color:var(--ink);}
+.fc-sp{flex:1;}
+.clr{padding:10px 20px;border:none;border-left:1px solid rgba(0,0,0,0.12);background:transparent;font-family:var(--mono);font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--gray);cursor:pointer;transition:all 0.15s;}
+.clr:hover{background:var(--red);color:#fff;}
+
+.logs-wrap{overflow-y:auto;max-height:400px;}
+table{width:100%;border-collapse:collapse;}
+thead th{padding:10px 18px;text-align:left;font-family:var(--mono);font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:var(--gray);background:var(--paper2);border-bottom:var(--b);position:sticky;top:0;font-weight:400;}
+tbody td{padding:11px 18px;font-family:var(--mono);font-size:12px;border-bottom:1px solid rgba(0,0,0,0.06);vertical-align:middle;color:var(--ink);}
+tbody tr:hover td{background:rgba(0,0,0,0.025);}
+.ttag{display:inline-block;padding:2px 8px;border:1px solid var(--ink);font-size:9px;letter-spacing:0.1em;text-transform:uppercase;font-family:var(--mono);}
+.pred{font-style:italic;font-family:var(--serif);font-size:15px;}
+.pred.bad{color:var(--red);font-weight:700;}
+.pred.good{color:var(--dim);}
+.prev-col{color:var(--gray);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;}
+.ts-col{color:var(--gray);font-size:10px;white-space:nowrap;}
+.nodata td{text-align:center;padding:52px 20px;color:var(--gray);font-family:var(--serif);font-style:italic;font-size:17px;}
+
+/* ══════════════════════════════════════════════
+   FOOTER STRIP — phishing warning visual
+══════════════════════════════════════════════ */
+.footer-strip{
+  border-top:var(--b4);
+  background:var(--ink);
+  padding:40px;
+  display:grid;
+  grid-template-columns:1fr 1fr 1fr;
+  gap:0;
+}
+.fs-col{padding:0 30px;border-right:1px solid rgba(240,233,216,0.12);}
+.fs-col:first-child{padding-left:0;}
+.fs-col:last-child{border-right:none;}
+.fs-label{font-family:var(--mono);font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:#5a5448;margin-bottom:10px;}
+.fs-text{font-family:var(--serif);font-size:clamp(14px,1.6vw,19px);font-style:italic;color:#c8bfaa;line-height:1.5;}
+.fs-text .highlight{color:#d94030;}
+
+/* ── Spinner ── */
+.spin{display:inline-block;width:13px;height:13px;border:2px solid rgba(240,236,226,0.25);border-top-color:var(--paper);border-radius:50%;animation:sp 0.65s linear infinite;vertical-align:middle;}
+@keyframes sp{to{transform:rotate(360deg);}}
+
+/* ── Toast ── */
+.toast{position:fixed;bottom:24px;right:24px;background:var(--ink);border:var(--b);padding:15px 20px;font-family:var(--mono);font-size:12px;color:var(--paper);z-index:1000;transform:translateY(60px) translateX(8px);opacity:0;transition:all 0.3s cubic-bezier(.34,1.4,.64,1);max-width:290px;box-shadow:6px 6px 0 rgba(0,0,0,0.3);}
+.toast.show{transform:none;opacity:1;}
+.toast-ttl{font-family:var(--serif);font-style:italic;font-size:16px;font-weight:700;margin-bottom:4px;}
+.toast-msg{color:var(--gray);font-size:11px;letter-spacing:0.04em;}
+
+/* ── Tab content ── */
+.tc{display:none;}
+.tc.active{display:block;}
+
+/* ── Keyframes ── */
+@keyframes fi{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
+@keyframes su{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:none;}}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-track{background:var(--paper2);}
+::-webkit-scrollbar-thumb{background:var(--dim);}
+
+/* ── Responsive ── */
+@media(max-width:1000px){
+  .anatomy-strip{grid-template-columns:repeat(2,1fr);}
+  .acard:nth-child(2){border-right:none;}
+  .stats-row{grid-template-columns:repeat(2,1fr);}
+  .sc:nth-child(2){border-right:none;}
+  .main-cols{grid-template-columns:1fr;}
+  .col-l{border-right:none;border-bottom:var(--b);}
+  .footer-strip{grid-template-columns:1fr;}
+  .fs-col{border-right:none;border-bottom:1px solid rgba(240,233,216,0.1);padding:16px 0;}
+}
+@media(max-width:600px){
+  .anatomy-strip{grid-template-columns:1fr;}
+  .acard{border-right:none;}
+  .stats-row{grid-template-columns:repeat(2,1fr);}
+  .hero-title{letter-spacing:-1px;}
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════
+     HERO — animated phishing scene
+══════════════════════════════════════════════ -->
+<div class="hero">
+
+  <svg class="hero-svg" viewBox="0 0 1400 520" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice">
+    <defs>
+      <radialGradient id="bgGrad" cx="50%" cy="50%" r="70%">
+        <stop offset="0%" stop-color="#1a1208"/>
+        <stop offset="100%" stop-color="#080604"/>
+      </radialGradient>
+      <filter id="glow">
+        <feGaussianBlur stdDeviation="3" result="blur"/>
+        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+      <filter id="softglow">
+        <feGaussianBlur stdDeviation="8" result="blur"/>
+        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+    </defs>
+
+    <rect width="1400" height="520" fill="url(#bgGrad)"/>
+
+    <g opacity="0.06" stroke="#d4a843" stroke-width="0.5">
+      <line x1="0" y1="65" x2="1400" y2="65"/><line x1="0" y1="130" x2="1400" y2="130"/>
+      <line x1="0" y1="195" x2="1400" y2="195"/><line x1="0" y1="260" x2="1400" y2="260"/>
+      <line x1="0" y1="325" x2="1400" y2="325"/><line x1="0" y1="390" x2="1400" y2="390"/>
+      <line x1="0" y1="455" x2="1400" y2="455"/>
+      <line x1="175" y1="0" x2="175" y2="520"/><line x1="350" y1="0" x2="350" y2="520"/>
+      <line x1="525" y1="0" x2="525" y2="520"/><line x1="700" y1="0" x2="700" y2="520"/>
+      <line x1="875" y1="0" x2="875" y2="520"/><line x1="1050" y1="0" x2="1050" y2="520"/>
+      <line x1="1225" y1="0" x2="1225" y2="520"/>
+    </g>
+
+    <g transform="translate(60,60)">
+      <rect x="0" y="0" width="320" height="240" rx="4" fill="#1a1610" stroke="#c8a84a" stroke-width="1.5" opacity="0.95"/>
+      <rect x="0" y="0" width="320" height="28" rx="4" fill="#c8a84a" opacity="0.9"/>
+      <rect x="0" y="14" width="320" height="14" fill="#c8a84a" opacity="0.9"/>
+      <circle cx="14" cy="14" r="5" fill="#d45843"/>
+      <circle cx="30" cy="14" r="5" fill="#d4a843"/>
+      <circle cx="46" cy="14" r="5" fill="#7ec880"/>
+      <text x="160" y="19" text-anchor="middle" fill="#1a1208" font-family="Courier New" font-size="11" font-weight="bold">⚠ URGENT: Verify Your Account</text>
+      <rect x="12" y="36" width="296" height="192" fill="#0d0b08"/>
+      <text x="20" y="58" fill="#7a7060" font-family="Courier New" font-size="9">FROM:</text>
+      <text x="60" y="58" fill="#d45843" font-family="Courier New" font-size="9">security@paypa1-secure.xyz</text>
+      <text x="20" y="73" fill="#7a7060" font-family="Courier New" font-size="9">SUBJ:</text>
+      <text x="60" y="73" fill="#d4a843" font-family="Courier New" font-size="9">Your account will be SUSPENDED</text>
+      <line x1="12" y1="80" x2="308" y2="80" stroke="#2a2820" stroke-width="1"/>
+      <text x="20" y="98" fill="#9a9080" font-family="Courier New" font-size="9">Dear Valued Customer,</text>
+      <text x="20" y="114" fill="#6a6458" font-family="Courier New" font-size="9">We have detected unusual activity on</text>
+      <text x="20" y="128" fill="#6a6458" font-family="Courier New" font-size="9">your account. Immediate action required.</text>
+      <text x="20" y="144" fill="#6a6458" font-family="Courier New" font-size="9">Failure to verify within 24 hours will</text>
+      <text x="20" y="158" fill="#6a6458" font-family="Courier New" font-size="9">result in permanent account suspension.</text>
+      <rect x="60" y="170" width="200" height="34" rx="2" fill="#d45843" opacity="0.9"/>
+      <text x="160" y="191" text-anchor="middle" fill="#fff" font-family="Courier New" font-size="12" font-weight="bold">CLICK HERE TO VERIFY NOW</text>
+      <rect x="12" y="214" width="296" height="14" rx="1" fill="#2a1e1a"/>
+      <text x="160" y="224" text-anchor="middle" fill="#d45843" font-family="Courier New" font-size="8">⚠ AI DETECTED: PHISHING ATTEMPT</text>
+    </g>
+
+    <g transform="translate(68,272)" filter="url(#glow)">
+      <rect x="0" y="0" width="300" height="36" fill="none" stroke="#d45843" stroke-width="2"/>
+      <text x="10" y="23" fill="#d45843" font-family="Courier New" font-size="13" font-weight="bold" letter-spacing="3">⚠  THREAT DETECTED</text>
+    </g>
+
+    <g transform="translate(560,20)">
+      <line x1="120" y1="0" x2="120" y2="120" stroke="#c8a84a" stroke-width="1.5" stroke-dasharray="4 4" opacity="0.7"/>
+      <path d="M120 120 Q120 155 100 165 Q75 175 72 160 Q70 148 82 146" fill="none" stroke="#c8a84a" stroke-width="3" stroke-linecap="round"/>
+      <circle cx="74" cy="152" r="3" fill="#c8a84a"/>
+      <g transform="translate(84,140)">
+        <rect x="0" y="0" width="72" height="44" rx="4" fill="#1a3a5c" stroke="#4a8ab8" stroke-width="1.5"/>
+        <rect x="0" y="0" width="72" height="13" rx="4" fill="#4a8ab8" opacity="0.6"/>
+        <rect x="0" y="7" width="72" height="6" fill="#4a8ab8" opacity="0.6"/>
+        <text x="36" y="28" text-anchor="middle" fill="#c8e0f4" font-family="Courier New" font-size="7">4532 •••• •••• 7891</text>
+        <text x="36" y="38" text-anchor="middle" fill="#8ab0d0" font-family="Courier New" font-size="6">JOHN DOE   CVV: •••</text>
+      </g>
+      <text x="120" y="205" text-anchor="middle" fill="#c8a84a" font-family="Courier New" font-size="10" letter-spacing="4" opacity="0.7">BAIT</text>
+    </g>
+
+    <g transform="translate(950,50)" opacity="0.85">
+      <ellipse cx="100" cy="90" rx="78" ry="80" fill="#0d0b08" stroke="#c8a84a" stroke-width="1.5"/>
+      <ellipse cx="72" cy="82" rx="22" ry="24" fill="#1a1208" stroke="#c8a84a" stroke-width="1"/>
+      <ellipse cx="128" cy="82" rx="22" ry="24" fill="#1a1208" stroke="#c8a84a" stroke-width="1"/>
+      <ellipse cx="72" cy="82" rx="14" ry="15" fill="#d45843" opacity="0.4" filter="url(#softglow)"/>
+      <ellipse cx="128" cy="82" rx="14" ry="15" fill="#d45843" opacity="0.4" filter="url(#softglow)"/>
+      <ellipse cx="72" cy="82" rx="6" ry="7" fill="#d45843" opacity="0.9"/>
+      <ellipse cx="128" cy="82" rx="6" ry="7" fill="#d45843" opacity="0.9"/>
+      <path d="M94 108 L100 120 L106 108" fill="none" stroke="#c8a84a" stroke-width="1.5"/>
+      <rect x="58" y="146" width="12" height="20" rx="1" fill="#0d0b08" stroke="#c8a84a" stroke-width="1"/>
+      <rect x="76" y="148" width="12" height="18" rx="1" fill="#0d0b08" stroke="#c8a84a" stroke-width="1"/>
+      <rect x="94" y="148" width="12" height="18" rx="1" fill="#0d0b08" stroke="#c8a84a" stroke-width="1"/>
+      <rect x="112" y="148" width="12" height="18" rx="1" fill="#0d0b08" stroke="#c8a84a" stroke-width="1"/>
+      <rect x="130" y="146" width="12" height="20" rx="1" fill="#0d0b08" stroke="#c8a84a" stroke-width="1"/>
+      <path d="M50 140 Q58 170 100 172 Q142 170 150 140" fill="none" stroke="#c8a84a" stroke-width="1.5"/>
+      <line x1="178" y1="70" x2="230" y2="70" stroke="#c8a84a" stroke-width="1" opacity="0.4"/>
+      <circle cx="230" cy="70" r="3" fill="#c8a84a" opacity="0.5"/>
+      <line x1="230" y1="70" x2="230" y2="110" stroke="#c8a84a" stroke-width="1" opacity="0.3"/>
+      <line x1="178" y1="110" x2="260" y2="110" stroke="#c8a84a" stroke-width="1" opacity="0.3"/>
+      <line x1="22" y1="90" x2="-30" y2="90" stroke="#c8a84a" stroke-width="1" opacity="0.4"/>
+      <line x1="-30" y1="90" x2="-30" y2="50" stroke="#c8a84a" stroke-width="1" opacity="0.3"/>
+    </g>
+
+    <g font-family="Courier New" font-size="10" opacity="0.35" fill="#c8a84a">
+      <text x="420" y="340">eval(atob("aGFja2Vk"));</text>
+      <text x="420" y="360">document.cookie = stolen;</text>
+      <text x="420" y="380">xhr.send(credentials);</text>
+    </g>
+
+    <g font-family="Courier New" font-size="9" opacity="0.25" fill="#7ec880">
+      <text x="740" y="420">AI_CLASSIFIER: RUNNING...</text>
+      <text x="740" y="438">FEATURES_EXTRACTED: 15</text>
+      <text x="740" y="456">VERDICT: PHISHING [98.4%]</text>
+      <text x="740" y="474">ACTION: BLOCKED ✓</text>
+    </g>
+
+    <g font-family="Courier New" font-size="9" fill="#c8a84a">
+      <text x="1300" y="40"  opacity="0.35">01101000</text>
+      <text x="1300" y="58"  opacity="0.25">11010010</text>
+      <text x="1300" y="76"  opacity="0.40">00110101</text>
+      <text x="1300" y="94"  opacity="0.20">10101101</text>
+      <text x="1300" y="112" opacity="0.35">01110011</text>
+      <text x="1300" y="130" opacity="0.15">11001010</text>
+      <text x="1300" y="148" opacity="0.30">00101110</text>
+      <text x="1300" y="166" opacity="0.40">10110001</text>
+      <text x="1330" y="40"  opacity="0.20">10011011</text>
+      <text x="1330" y="58"  opacity="0.30">01101100</text>
+      <text x="1330" y="76"  opacity="0.15">11100101</text>
+      <text x="1330" y="94"  opacity="0.40">00011010</text>
+      <text x="1330" y="112" opacity="0.25">10100110</text>
+      <text x="1330" y="130" opacity="0.35">01011001</text>
+    </g>
+
+    <g stroke="#d45843" stroke-width="1.5" fill="none" opacity="0.5">
+      <rect x="490" y="390" width="22" height="18" rx="2"/>
+      <path d="M494 390 Q494 380 501 380 Q508 380 508 387"/>
+      <circle cx="501" cy="401" r="2.5" fill="#d45843"/>
+      <rect x="840" y="60" width="18" height="14" rx="2"/>
+      <path d="M843 60 Q843 52 849 52 Q855 52 855 58" stroke-dasharray="2 2"/>
+      <circle cx="849" cy="68" r="2" fill="#d45843"/>
+    </g>
+
+    <g transform="translate(430,410)" opacity="0.7">
+      <rect x="0" y="0" width="140" height="24" fill="none" stroke="#d45843" stroke-width="1.5"/>
+      <text x="70" y="16" text-anchor="middle" fill="#d45843" font-family="Courier New" font-size="11" font-weight="bold" letter-spacing="2">DANGER ZONE</text>
+    </g>
+
+    <g transform="translate(800,380)" opacity="0.6">
+      <rect x="0" y="0" width="170" height="24" fill="none" stroke="#c8a84a" stroke-width="1.5"/>
+      <text x="85" y="16" text-anchor="middle" fill="#c8a84a" font-family="Courier New" font-size="11" font-weight="bold" letter-spacing="2">CLASSIFIED DATA</text>
+    </g>
+  </svg>
+
+  <div class="hero-overlay">
+    <div class="hero-kicker">Artificial Intelligence Security System</div>
+    <div class="hero-title"><span class="red-word">Threat</span>Scan</div>
+    <div class="hero-sub">Real-Time Phishing &amp; Malware Detection &bull; Powered by Machine Learning</div>
+    <div class="hero-badges">
+      <span class="hbadge"><span class="blink"></span>System Online</span>
+      <span class="hbadge">AI Model: Active</span>
+      <span class="hbadge">Naive Bayes + Random Forest</span>
+      <span class="hbadge">SQLite + FastAPI</span>
+    </div>
+  </div>
+</div>
+
+<!-- ANATOMY CARDS -->
+<div class="anatomy-strip">
+  <div class="acard">
+    <div class="acard-num">01</div>
+    <svg class="acard-icon" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="4" y="10" width="40" height="30" rx="2" stroke="#1c1710" stroke-width="2"/>
+      <path d="M4 14l20 14 20-14" stroke="#1c1710" stroke-width="2"/>
+      <path d="M20 28l-16 12M28 28l16 12" stroke="#1c1710" stroke-width="1.5" opacity="0.4"/>
+    </svg>
+    <div class="acard-title">Email Phishing</div>
+    <div class="acard-desc">TF-IDF vectorization converts email text into numerical features. Naive Bayes calculates the probability that words like "urgent", "verify", "suspended" belong to a phishing email vs a legitimate one.</div>
+  </div>
+  <div class="acard">
+    <div class="acard-num">02</div>
+    <svg class="acard-icon" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="24" cy="24" r="18" stroke="#1c1710" stroke-width="2"/>
+      <path d="M6 24h36M24 6C18 12 15 18 15 24s3 12 9 18M24 6c6 6 9 12 9 18s-3 12-9 18" stroke="#1c1710" stroke-width="1.5"/>
+      <circle cx="24" cy="24" r="3" fill="#b02a1a"/>
+    </svg>
+    <div class="acard-title">Malicious URLs</div>
+    <div class="acard-desc">15+ engineered features: Shannon entropy of the domain, IP-based hostnames, suspicious keywords, HTTP vs HTTPS, subdomain count. Random Forest votes across 100 decision trees to classify.</div>
+  </div>
+  <div class="acard">
+    <div class="acard-num">03</div>
+    <svg class="acard-icon" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="6" y="30" width="10" height="12" rx="1" stroke="#1c1710" stroke-width="2"/>
+      <rect x="19" y="22" width="10" height="20" rx="1" stroke="#1c1710" stroke-width="2"/>
+      <rect x="32" y="14" width="10" height="28" rx="1" stroke="#1c1710" stroke-width="2"/>
+      <path d="M8 20l8-8 8 4 16-10" stroke="#1c1710" stroke-width="2" stroke-linecap="round"/>
+    </svg>
+    <div class="acard-title">Network Activity</div>
+    <div class="acard-desc">Anomaly detection on IP addresses, request frequency, suspicious domains (e.g. .ru, .xyz, .tk TLDs), and traffic spikes. Flags DDoS patterns and data exfiltration attempts in real time.</div>
+  </div>
+  <div class="acard">
+    <div class="acard-num">04</div>
+    <svg class="acard-icon" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M24 4L6 14v12c0 10 8 18 18 22 10-4 18-12 18-22V14L24 4z" stroke="#1c1710" stroke-width="2"/>
+      <path d="M16 24l6 6 10-12" stroke="#1c1710" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <div class="acard-title">Audit Logging</div>
+    <div class="acard-desc">Every scan is stored in SQLite/PostgreSQL with timestamp, IP address, confidence score and risk level. Full audit trail for compliance. FastAPI auto-generates live Swagger docs at /docs.</div>
+  </div>
+</div>
+
+<!-- MASTBAR -->
+<div class="mastbar">
+  <div class="mastbar-left">
+    <div id="mdate">Loading date...</div>
+    <div>Vol. I &bull; Issue 001 &bull; Threat Intelligence Edition</div>
+  </div>
+  <div class="mastbar-center">The ThreatScan Sentinel</div>
+  <div class="mastbar-right">
+    <span class="blink" style="background:#5d9e6a"></span>
+    All Systems Operational
+  </div>
+</div>
+
+<!-- STATS -->
+<div class="stats-row">
+  <div class="sc" data-n="01"><div class="sc-lbl">Total Scans</div><div class="sc-val" id="s-tot">0</div><div class="sc-sub">All sessions combined</div></div>
+  <div class="sc" data-n="02"><div class="sc-lbl">Threats Found</div><div class="sc-val red" id="s-thr">0</div><div class="sc-sub">Phishing + malicious</div></div>
+  <div class="sc" data-n="03"><div class="sc-lbl">Detection Rate</div><div class="sc-val" id="s-rate">0%</div><div class="sc-sub">Of all scans</div></div>
+  <div class="sc" data-n="04"><div class="sc-lbl">Critical Alerts</div><div class="sc-val red" id="s-crit">0</div><div class="sc-sub">Immediate action needed</div></div>
+</div>
+
+<div class="divider-head">
+  <div class="dh-line"></div>
+  <div class="dh-text">Submit a Sample &mdash; The AI Classifier Will Analyze It Instantly</div>
+  <div class="dh-line"></div>
+</div>
+
+<!-- MAIN 2-COL -->
+<div class="main-cols">
+  <div class="col-l">
+    <div class="sh"><h2>Scan Interface</h2><span class="sh-tag">Input Terminal</span></div>
+    <div class="tabs-row">
+      <button class="tab-btn active" onclick="switchTab('email',this)">// Email</button>
+      <button class="tab-btn" onclick="switchTab('url',this)">// URL</button>
+      <button class="tab-btn" onclick="switchTab('network',this)">// Network</button>
+    </div>
+    <div class="form-body">
+
+      <!-- EMAIL TAB -->
+      <div class="tc active" id="tab-email">
+        <div class="form-group">
+          <label class="form-lbl">Subject Line</label>
+          <input class="form-input" id="e-sub" placeholder="Your account has been suspended immediately..."/>
+        </div>
+        <div class="form-group">
+          <label class="form-lbl">Email Body</label>
+          <textarea class="form-ta" id="e-body" placeholder="Dear valued customer, we have detected unusual activity on your account. Please click the link below to verify your identity within 24 hours or your account will be permanently suspended..."></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-lbl">Sender (optional)</label>
+          <input class="form-input" id="e-sender" placeholder="security@paypa1-secure.xyz"/>
+        </div>
+        <button type="button" class="scan-btn" id="btn-email" onclick="runScan('email')">Analyze This Email &rarr;</button>
+      </div>
+
+      <!-- URL TAB -->
+      <div class="tc" id="tab-url">
+        <div class="form-group">
+          <label class="form-lbl">Suspicious URL</label>
+          <input class="form-input" id="u-in" placeholder="https://paypa1-secure-login.xyz/verify-account"/>
+        </div>
+        <div style="height:14px"></div>
+        <button type="button" class="scan-btn" id="btn-url" onclick="runScan('url')">Analyze This URL &rarr;</button>
+      </div>
+
+      <!-- NETWORK TAB -->
+      <div class="tc" id="tab-network">
+        <div class="form-group">
+          <label class="form-lbl">IP Address</label>
+          <input class="form-input" id="n-ip" placeholder="192.168.1.100"/>
+        </div>
+        <div class="form-group">
+          <label class="form-lbl">Domain (optional)</label>
+          <input class="form-input" id="n-dom" placeholder="suspicious-domain.ru"/>
+        </div>
+        <div class="form-group">
+          <label class="form-lbl">Request Count</label>
+          <input class="form-input" id="n-cnt" type="number" placeholder="1500 (high = suspicious)"/>
+        </div>
+        <div class="form-group">
+          <label class="form-lbl">User Agent (optional)</label>
+          <input class="form-input" id="n-ua" placeholder="Mozilla/5.0 or bot string..."/>
+        </div>
+        <button type="button" class="scan-btn" id="btn-network" onclick="runScan('network')">Analyze Activity &rarr;</button>
+      </div>
+
+      <div class="terminal" id="terminal"></div>
+      <div class="rbox" id="rbox">
+        <div class="rhd" id="rhd"></div>
+        <div id="rrows"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT -->
+  <div class="col-r">
+    <div class="chart-sec">
+      <div class="sh"><h2>7-Day Scan Activity</h2><span class="sh-tag">Scan History</span></div>
+      <div class="chart-wrap" id="chart">
+        <div style="width:100%;text-align:center;font-family:var(--serif);font-style:italic;color:var(--gray);font-size:16px;align-self:center">No scan data yet &mdash; run a scan above</div>
+      </div>
+      <div class="cleg">
+        <div class="li"><div class="lsw tot"></div> Total scans</div>
+        <div class="li"><div class="lsw thr"></div> Threats detected</div>
+      </div>
+    </div>
+    <div class="brk-sec">
+      <div class="sh"><h2>Risk Level Breakdown</h2><span class="sh-tag">By Severity</span></div>
+      <div class="brk-body" id="brk">
+        <div style="font-family:var(--serif);font-style:italic;color:var(--gray);font-size:16px;padding:8px 0">Run your first scan to see the risk distribution here.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="divider-head">
+  <div class="dh-line"></div>
+  <div class="dh-text">Full Scan Chronicle &mdash; Every Detection Logged &amp; Timestamped</div>
+  <div class="dh-line"></div>
+</div>
+
+<!-- LOGS -->
+<div class="logs-sec">
+  <div class="sh"><h2>Scan Chronicle</h2><span class="sh-tag">Audit Log</span></div>
+  <div class="logs-flt">
+    <button class="fc active" onclick="filt('all',this)">All Records</button>
+    <button class="fc" onclick="filt('email',this)">Email</button>
+    <button class="fc" onclick="filt('url',this)">URL</button>
+    <button class="fc" onclick="filt('network',this)">Network</button>
+    <button class="fc" onclick="filt('threat',this)">Threats Only</button>
+    <div class="fc-sp"></div>
+    <button class="clr" onclick="clearLogs()">Clear All</button>
+  </div>
+  <div class="logs-wrap">
+    <table>
+      <thead><tr><th>No.</th><th>Type</th><th>Input Preview</th><th>Verdict</th><th>Risk</th><th>Confidence</th><th>Time</th></tr></thead>
+      <tbody id="tbody"><tr class="nodata"><td colspan="7">No scans recorded &mdash; submit a sample above to begin</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<div class="footer-strip">
+  <div class="fs-col">
+    <div class="fs-label">// How It Works</div>
+    <div class="fs-text">The AI classifier uses <span class="highlight">TF-IDF vectorization</span> to convert raw email text into numerical feature vectors, then <span class="highlight">Naive Bayes</span> calculates the probability of phishing.</div>
+  </div>
+  <div class="fs-col">
+    <div class="fs-label">// URL Detection</div>
+    <div class="fs-text"><span class="highlight">Shannon entropy</span> measures how random a domain name looks. <span class="highlight">Random Forest</span> votes across 100 decision trees using 15 engineered URL features.</div>
+  </div>
+  <div class="fs-col">
+    <div class="fs-label">// Architecture</div>
+    <div class="fs-text"><span class="highlight">FastAPI</span> backend with SQLAlchemy ORM, <span class="highlight">SQLite</span> audit database, scikit-learn models, and this zero-dependency HTML frontend.</div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"><div class="toast-ttl" id="ttl"></div><div class="toast-msg" id="tmsg"></div></div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  CONFIG — change this if your backend runs elsewhere
+// ═══════════════════════════════════════════════════════
+const API = 'http://localhost:8000';
+
+// ─── State ───────────────────────────────────────────
+let logs   = [];   // local log store for UI
+let filter = 'all';
+let tab    = 'email';
+let sid    = 0;    // fallback local scan id counter
+let toastT;
+
+// ─── Init ─────────────────────────────────────────────
+(async () => {
+  document.getElementById('mdate').textContent =
+    new Date().toLocaleDateString('en-US', {
+      weekday:'long', year:'numeric', month:'long', day:'numeric'
+    }).toUpperCase();
+
+  // Try to load existing stats + logs from backend on page load
+  await loadBackendLogs();
+  await refreshStats();
+  drawChart();
+})();
+
+// ─── Load existing logs from GET /logs ───────────────
+async function loadBackendLogs() {
+  try {
+    const r = await fetch(`${API}/logs?limit=100`);
+    if (!r.ok) return;
+    const data = await r.json();
+    // Map backend log shape → our local log shape
+    logs = data.map(l => ({
+      id:         l.id,
+      type:       l.scan_type,
+      prev:       l.input_preview || '',
+      prediction: l.prediction,
+      rl:         l.risk_level,
+      conf:       (() => { let c = l.confidence || 0.75; if (c > 1) c = c/100; return Math.min(Math.round(c*100),100); })(),
+      ts:         new Date(l.timestamp)
+    }));
+    // Keep the sid counter above the highest known id
+    if (logs.length) sid = Math.max(...logs.map(l => l.id));
+    renderLogs();
+  } catch (_) {
+    // Backend offline — logs stay empty, that's fine
+  }
+}
+
+// ─── Tab switching ────────────────────────────────────
+function switchTab(t, btn) {
+  tab = t;
+  document.querySelectorAll('.tc').forEach(e => e.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(e => e.classList.remove('active'));
+  document.getElementById('tab-' + t).classList.add('active');
+  btn.classList.add('active');
+  hideResult();
+}
+
+function hideResult() {
+  document.getElementById('rbox').classList.remove('vis');
+  const te = document.getElementById('terminal');
+  te.classList.remove('vis');
+  te.innerHTML = '';
+}
+
+// ─── Main scan handler ────────────────────────────────
+async function runScan(type) {
+  const btn = document.getElementById('btn-' + type);
+  let endpoint, payload;
+
+  // ── Build endpoint + payload exactly matching FastAPI schemas ──
+  if (type === 'email') {
+    const subject = document.getElementById('e-sub').value.trim();
+    const body    = document.getElementById('e-body').value.trim();
+    const sender  = document.getElementById('e-sender').value.trim();
+    if (!subject && !body) {
+      toast('Input Required', 'Enter a subject or body to scan.', 'w');
+      return;
+    }
+    endpoint = '/scan/email';
+    // Matches EmailScanRequest: { subject, body, sender? }
+    payload = {
+      subject: subject || '(no subject)',
+      body:    body    || '(no body)',
+      ...(sender && { sender })
+    };
+
+  } else if (type === 'url') {
+    const url = document.getElementById('u-in').value.trim();
+    if (!url) {
+      toast('Input Required', 'Enter a URL to analyze.', 'w');
+      return;
+    }
+    endpoint = '/scan/url';
+    // Matches URLScanRequest: { url }
+    payload = { url };
+
+  } else {
+    // network
+    const ip_address   = document.getElementById('n-ip').value.trim();
+    const domain       = document.getElementById('n-dom').value.trim();
+    const request_count = parseInt(document.getElementById('n-cnt').value) || null;
+    const user_agent   = document.getElementById('n-ua').value.trim();
+    if (!ip_address) {
+      toast('Input Required', 'Enter an IP address.', 'w');
+      return;
+    }
+    endpoint = '/scan/network';
+    // Matches NetworkScanRequest: { ip_address, domain?, request_count?, user_agent? }
+    payload = {
+      ip_address,
+      ...(domain        && { domain }),
+      ...(request_count && { request_count }),
+      ...(user_agent    && { user_agent })
+    };
+  }
+
+  // ── UI: disable button, start terminal ──
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin"></span> Processing...';
+  startTerminal(type);
+
+  let result;
+  let fromBackend = false;
+
+  try {
+    const resp = await fetch(API + endpoint, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(payload)
+    });
+
+    if (!resp.ok) {
+      // Surface HTTP errors (422 validation, 500, etc.)
+      const errBody = await resp.json().catch(() => ({}));
+      throw new Error(`HTTP ${resp.status}: ${errBody.detail || resp.statusText}`);
+    }
+
+    result = await resp.json();
+    fromBackend = true;
+
+    // Backend response for /scan/email:
+    //   { scan_id, timestamp, prediction, risk_level, confidence, phishing_score, ... }
+    // Backend response for /scan/url:
+    //   { scan_id, timestamp, prediction, risk_level, confidence, malicious_score, features:{...} }
+    // Backend response for /scan/network:
+    //   (handled the same way — uses threat_score if present)
+
+    tline(`<span class="t-ok">[ OK ] Scan complete — id: ${result.scan_id}</span>`);
+
+  } catch (err) {
+    // ── Fallback: local simulation when backend is offline ──
+    console.warn('Backend unreachable, using local simulation:', err.message);
+    result = simulate(type, payload);
+    tline(`<span class="t-wa">[ DEMO ] Backend offline — local simulation active</span>`);
+    tline(`<span class="t-ok">[ SIM ] ${result.prediction.toUpperCase()} / ${result.risk_level}</span>`);
+  }
+
+  // ── Render result + update log ──
+  showResult(result, type);
+  addLog(result, type, payload, fromBackend);
+  await refreshStats();
+
+  const isThreat = ['phishing', 'malicious', 'suspicious'].includes(result.prediction);
+  toast(
+    isThreat ? '&#9888; Threat Detected' : '&#10003; Scan Complete',
+    `${result.prediction.toUpperCase()} &mdash; Risk: ${result.risk_level}`,
+    isThreat ? 'd' : 'ok'
+  );
+
+  btn.disabled = false;
+  btn.innerHTML =
+    type === 'email'   ? 'Analyze This Email &rarr;'  :
+    type === 'url'     ? 'Analyze This URL &rarr;'    :
+                         'Analyze Activity &rarr;';
+}
+
+// ─── Terminal animation ───────────────────────────────
+function termEl() { return document.getElementById('terminal'); }
+
+function startTerminal(type) {
+  const te = termEl();
+  te.innerHTML = '';
+  te.classList.add('vis');
+  const lines = [
+    `<span class="t-p">threatscan@ai:~$</span> <span class="t-c">./scan --type ${type} --model sklearn-v2</span>`,
+    `<span class="t-p">&gt;</span> Loading classifier pipeline... <span class="t-ok">ready</span>`,
+    `<span class="t-p">&gt;</span> Extracting features... <span class="t-ok">done</span>`,
+    `<span class="t-p">&gt;</span> Running inference... <span class="t-cur"></span>`
+  ];
+  lines.forEach((l, i) => setTimeout(() => tline(l), i * 165));
+}
+
+function tline(html) {
+  const d = document.createElement('div');
+  d.innerHTML = html;
+  termEl().appendChild(d);
+  termEl().scrollTop = termEl().scrollHeight;
+}
+
+// ─── Show result panel ────────────────────────────────
+function showResult(data, type) {
+  const isThreat = ['phishing', 'malicious', 'suspicious'].includes(data.prediction);
+
+  // Normalise score field — backend uses different keys per scan type
+  const score = Math.round(
+    data.phishing_score  ??
+    data.malicious_score ??
+    data.threat_score    ?? 0
+  );
+
+  // confidence: backend always returns 0.0–1.0 float, multiply by 100
+  let conf = data.confidence ?? 0.75;
+  if (conf > 1) conf = conf / 100; // guard: already a percentage
+  conf = Math.min(Math.round(conf * 100), 100);
+
+  const rl = data.risk_level || 'LOW';
+
+  document.getElementById('rhd').innerHTML = `
+    <span class="rhd-lbl">Scan #${data.scan_id || ++sid} &mdash; Analysis Complete</span>
+    <span class="vstamp ${isThreat ? 'bad' : 'good'}">${data.prediction.toUpperCase()}</span>
+  `;
+
+  let rows = `
+    <div class="rrow">
+      <span class="rk">Risk Level</span>
+      <span class="rv"><span class="rtag r-${rl}">${rl}</span></span>
+    </div>
+    <div class="rrow">
+      <span class="rk">Threat Score</span>
+      <span class="rv rbar-wrap">
+        ${score}%
+        <div class="rtrack"><div class="rfill" style="width:${score}%;background:${isThreat ? 'var(--red)' : 'var(--dim)'}"></div></div>
+      </span>
+    </div>
+    <div class="rrow">
+      <span class="rk">Confidence</span>
+      <span class="rv rbar-wrap">
+        ${conf}%
+        <div class="rtrack"><div class="rfill" style="width:${conf}%"></div></div>
+      </span>
+    </div>
+  `;
+
+  // URL-specific feature breakdown (backend returns features:{} for /scan/url)
+  if (data.features) {
+    const f = data.features;
+    rows += `
+      <div class="rrow">
+        <span class="rk">HTTPS</span>
+        <span class="rv" style="color:${f.has_https ? 'var(--dim)' : 'var(--red)'}">
+          ${f.has_https ? '&#10003; Present' : '&#10007; Absent'}
+        </span>
+      </div>
+      <div class="rrow">
+        <span class="rk">IP as Domain</span>
+        <span class="rv" style="color:${f.has_ip_domain ? 'var(--red)' : 'var(--dim)'}">
+          ${f.has_ip_domain ? '&#9888; Yes &mdash; suspicious' : '&#10003; No'}
+        </span>
+      </div>
+      <div class="rrow">
+        <span class="rk">Suspicious Keywords</span>
+        <span class="rv" style="color:${f.has_suspicious_keywords ? '#8a6a00' : 'var(--dim)'}">
+          ${f.has_suspicious_keywords ? '&#9888; Detected' : '&#10003; None found'}
+        </span>
+      </div>
+      <div class="rrow">
+        <span class="rk">Domain Entropy</span>
+        <span class="rv">${f.domain_entropy ?? 'N/A'}</span>
+      </div>
+    `;
+  }
+
+  document.getElementById('rrows').innerHTML = rows;
+  document.getElementById('rbox').classList.add('vis');
+}
+
+// ─── Local simulation (backend offline) ───────────────
+function simulate(type, pl) {
+  let score = 0;
+
+  if (type === 'email') {
+    const text = ((pl.subject || '') + ' ' + (pl.body || '')).toLowerCase();
+    ['verify','account','suspended','urgent','click here','login','bank',
+     'password','winner','confirm','update','immediately','prize','free',
+     'validate','unusual activity','24 hours'].forEach(w => {
+      if (text.includes(w)) score += 10;
+    });
+    score = Math.min(score + Math.random() * 8, 97);
+
+  } else if (type === 'url') {
+    const u = (pl.url || '').toLowerCase();
+    if (!/^https/.test(u))                                   score += 15;
+    if (/\d+\.\d+\.\d+\.\d+/.test(u))                       score += 40;
+    if (/free|prize|win|verify|login|bank|secure|paypa/.test(u)) score += 25;
+    if ((u.match(/\./g) || []).length > 4)                   score += 15;
+    score = Math.min(score + Math.random() * 10, 97);
+
+  } else {
+    const cnt = pl.request_count || 0;
+    if (cnt > 1000) score += 55;
+    else if (cnt > 500) score += 30;
+    if (/\.ru$|\.xyz$|\.tk$|\.pw$/.test((pl.domain || '').toLowerCase())) score += 25;
+    score = Math.min(score + Math.random() * 10, 97);
+  }
+
+  score = Math.round(score);
+  const rl = score >= 80 ? 'CRITICAL' : score >= 60 ? 'HIGH' : score >= 35 ? 'MEDIUM' : 'LOW';
+  const isThreat = score >= 35;
+
+  return {
+    scan_id:       ++sid,
+    prediction:    isThreat
+      ? (type === 'email' ? 'phishing' : type === 'url' ? 'malicious' : 'suspicious')
+      : (type === 'email' ? 'legitimate' : 'safe'),
+    risk_level:    rl,
+    confidence:    Math.min(Math.round(62 + score * 0.3 + Math.random() * 8), 99),
+    phishing_score:  score,
+    malicious_score: score,
+    threat_score:    score,
+    features: type === 'url' ? {
+      has_ip_domain:           /\d+\.\d+\.\d+\.\d+/.test(pl.url || ''),
+      has_https:               /^https/.test(pl.url || ''),
+      has_suspicious_keywords: /free|prize|win|verify|login|secure|paypa/.test((pl.url || '').toLowerCase()),
+      domain_entropy:          +((2 + Math.random() * 2.5).toFixed(3))
+    } : null
+  };
+}
+
+// ─── Log management ───────────────────────────────────
+function addLog(data, type, payload, fromBackend) {
+  // Build a preview string from the payload
+  const preview =
+    type === 'email'   ? (payload.subject || 'No subject') :
+    type === 'url'     ? payload.url :
+                         payload.ip_address;
+
+  // If this came from the backend it already has a real id
+  const entry = {
+    id:         data.scan_id || ++sid,
+    type,
+    prev:       preview,
+    prediction: data.prediction,
+    rl:         data.risk_level,
+    conf:       (() => {
+      let c = data.confidence ?? 0.75;
+      if (c > 1) c = c / 100; // guard: already a percentage
+      return Math.min(Math.round(c * 100), 100);
+    })(),
+    ts: new Date()
+  };
+
+  // Avoid duplicates if we already loaded this from GET /logs on init
+  if (!logs.find(l => l.id === entry.id)) {
+    logs.unshift(entry);
+  }
+
+  renderLogs();
+  drawChart();
+  updateBrk();
+}
+
+function filt(f, btn) {
+  filter = f;
+  document.querySelectorAll('.fc').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  renderLogs();
+}
+
+function clearLogs() {
+  logs = [];
+  sid  = 0;
+  renderLogs();
+  drawChart();
+  updateBrk();
+  refreshStats();
+  toast('Cleared', 'All records removed.', 'ok');
+}
+
+function renderLogs() {
+  const tb = document.getElementById('tbody');
+  const list =
+    filter === 'threat' ? logs.filter(l => ['phishing','malicious','suspicious'].includes(l.prediction)) :
+    filter === 'all'    ? logs :
+                          logs.filter(l => l.type === filter);
+
+  if (!list.length) {
+    tb.innerHTML = `<tr class="nodata"><td colspan="7">${
+      filter === 'threat' ? 'No threats detected yet.' : 'No records in this category.'
+    }</td></tr>`;
+    return;
+  }
+
+  tb.innerHTML = list.map(l => {
+    const bad = ['phishing', 'malicious', 'suspicious'].includes(l.prediction);
+    return `<tr>
+      <td style="color:var(--gray)">${String(l.id).padStart(3, '0')}</td>
+      <td><span class="ttag">${l.type}</span></td>
+      <td class="prev-col">${esc(l.prev)}</td>
+      <td class="pred ${bad ? 'bad' : 'good'}">${l.prediction}</td>
+      <td><span class="rtag r-${l.rl}">${l.rl}</span></td>
+      <td>${l.conf}%</td>
+      <td class="ts-col">${fmt(l.ts)}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ─── Stats ────────────────────────────────────────────
+async function refreshStats() {
+  try {
+    // Try GET /stats from backend first
+    const r = await fetch(`${API}/stats`);
+    if (r.ok) {
+      applyStats(await r.json());
+      return;
+    }
+  } catch (_) {}
+
+  // Fallback: compute from local logs
+  const tot  = logs.length;
+  const thr  = logs.filter(l => ['phishing','malicious','suspicious'].includes(l.prediction)).length;
+  const crit = logs.filter(l => l.rl === 'CRITICAL').length;
+  applyStats({
+    total_scans:      tot,
+    threats_detected: thr,
+    threat_rate:      tot ? Math.round(thr / tot * 100) : 0,
+    critical_count:   crit
+  });
+}
+
+function applyStats(d) {
+  document.getElementById('s-tot').textContent  = d.total_scans;
+  document.getElementById('s-thr').textContent  = d.threats_detected;
+  document.getElementById('s-rate').textContent = d.threat_rate + '%';
+  document.getElementById('s-crit').textContent = d.critical_count;
+}
+
+// ─── Chart ────────────────────────────────────────────
+function drawChart() {
+  const el   = document.getElementById('chart');
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (6 - i));
+    return d.toISOString().split('T')[0];
+  });
+  const map = {};
+  days.forEach(d => map[d] = { total: 0, threats: 0 });
+  logs.forEach(l => {
+    const d = l.ts.toISOString().split('T')[0];
+    if (map[d]) {
+      map[d].total++;
+      if (['phishing','malicious','suspicious'].includes(l.prediction)) map[d].threats++;
+    }
+  });
+  const vals = days.map(d => map[d]);
+  const mx   = Math.max(...vals.map(v => v.total), 1);
+
+  el.innerHTML = vals.map((v, i) => `
+    <div class="bcol">
+      <div class="bcols">
+        <div class="bbar" style="height:${Math.round(v.total   / mx * 96)}px" title="${v.total} scans"></div>
+        <div class="bbar t" style="height:${Math.round(v.threats / mx * 96)}px" title="${v.threats} threats"></div>
+      </div>
+      <div class="blbl">${days[i].slice(5)}</div>
+    </div>
+  `).join('');
+}
+
+// ─── Risk breakdown ───────────────────────────────────
+function updateBrk() {
+  const el = document.getElementById('brk');
+  if (!logs.length) {
+    el.innerHTML = '<div style="font-family:var(--serif);font-style:italic;color:var(--gray);font-size:16px;padding:8px 0">Run your first scan to see the risk distribution here.</div>';
+    return;
+  }
+  const c   = { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0 };
+  logs.forEach(l => { if (c[l.rl] !== undefined) c[l.rl]++; });
+  const tot = logs.length;
+  el.innerHTML = Object.entries(c).map(([rl, n]) => `
+    <div class="rl-row">
+      <div class="rl-hd">
+        <span>${rl}</span>
+        <span>${n} &mdash; ${Math.round(n / tot * 100)}%</span>
+      </div>
+      <div class="rl-track"><div class="rl-fill" style="width:${Math.round(n / tot * 100)}%"></div></div>
+    </div>
+  `).join('');
+}
+
+// ─── Utilities ────────────────────────────────────────
+function toast(title, msg, type) {
+  const t = document.getElementById('toast');
+  document.getElementById('ttl').innerHTML  = title;
+  document.getElementById('tmsg').innerHTML = msg;
+  t.style.borderLeftWidth = type === 'd' ? '4px' : '2px';
+  t.style.borderLeftColor = type === 'd' ? 'var(--red)' : 'var(--ink)';
+  t.classList.add('show');
+  clearTimeout(toastT);
+  toastT = setTimeout(() => t.classList.remove('show'), 3800);
+}
+
+function esc(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function fmt(d) {
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+</script>
+</body>
+</html>
